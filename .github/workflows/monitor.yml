@@ -1,0 +1,40 @@
+name: PBS Traffic Monitor
+
+on:
+  schedule:
+    # GitHub Actions 定時排程（每 5 分鐘自動執行一次，完全免費）
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # 支援在網頁上一鍵手動觸發
+
+permissions:
+  contents: write # 允許腳本將最新狀態 state.json 寫回儲存庫防重複推播
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下載專案程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安裝相依套件
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: 執行路況檢查與推播
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python traffic_monitor.py
+
+      - name: 保存推播紀錄至 Repository (避免重複發報)
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add state.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "自動更新路況狀態紀錄 [skip ci]" && git push)
