@@ -2,12 +2,12 @@ name: PBS Traffic Monitor
 
 on:
   schedule:
-    # 每 5 分鐘自動巡檢一次
+    # 每 5 分鐘自動啟動一次，每次內部輪詢 5 分鐘，達到不間斷每分鐘巡檢
     - cron: '*/5 * * * *'
-  workflow_dispatch: # 支援手動一鍵點擊執行
+  workflow_dispatch: # 支援在網頁上一鍵手動觸發
 
 permissions:
-  contents: write # 允許寫入最新狀態到 Repository
+  contents: write # 賦予寫入權限，用以保存 state.json
 
 jobs:
   run-monitor:
@@ -29,10 +29,11 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        # 加上 -u 參數，強制終端機即時輸出每一秒的日誌，不再卡住或緩衝
         run: |
           python -u traffic_monitor.py
 
-      - name: 保存推播紀錄至 Repository
+      - name: 保存推播紀錄至 Repository (防重複發報)
         run: |
           if [ -f state.json ]; then
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -40,5 +41,5 @@ jobs:
             git add state.json
             git diff --quiet && git diff --staged --quiet || (git commit -m "自動更新路況狀態紀錄 [skip ci]" && git push)
           else
-            echo "state.json 尚未產生，略過本次 commit。"
+            echo "state.json 不存在，略過本次 commit。"
           fi
