@@ -2,12 +2,12 @@ name: PBS Traffic Monitor
 
 on:
   schedule:
-    # GitHub Actions 定時排程（每 5 分鐘自動執行一次，完全免費）
+    # 每 5 分鐘自動巡檢一次
     - cron: '*/5 * * * *'
-  workflow_dispatch: # 支援在網頁上一鍵手動觸發
+  workflow_dispatch: # 支援手動一鍵點擊執行
 
 permissions:
-  contents: write # 允許腳本將最新狀態 state.json 寫回儲存庫防重複推播
+  contents: write # 允許寫入最新狀態到 Repository
 
 jobs:
   run-monitor:
@@ -32,9 +32,13 @@ jobs:
         run: |
           python traffic_monitor.py
 
-      - name: 保存推播紀錄至 Repository (避免重複發報)
+      - name: 保存推播紀錄至 Repository
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add state.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "自動更新路況狀態紀錄 [skip ci]" && git push)
+          if [ -f state.json ]; then
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add state.json
+            git diff --quiet && git diff --staged --quiet || (git commit -m "自動更新路況狀態紀錄 [skip ci]" && git push)
+          else
+            echo "state.json 尚未產生，略過本次 commit。"
+          fi
